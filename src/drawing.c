@@ -61,21 +61,27 @@ void termAddCh(struct TermContext* term, uint32_t unicode) {
 }
 
 void updateMvpUbo(struct TermContext* ctx){
+
+//static float rot = 0;
+ //      rot += 0.1;
+
  struct GpuMvp mvp;
  glm_mat4_identity(mvp.model);
+
  glm_mat4_identity(mvp.view);
+ vec3 eye = {0.0f, 0.0f, 5.0f};    // Camera position
+ vec3 center = {0.0f, 0.0f, 0.0f};    // Look at origin
+ vec3 up = {0.0f, 1.0f, 0.0f};        // Up vector
+ glm_lookat(eye, center, up, mvp.view);
+
  glm_mat4_identity(mvp.proj);
- glm_translate(mvp.model, (vec3){-1.0, -1.0, 0.0f});
+ glm_ortho(0, ASCII_SCREEN_WIDTH *2,
+        0, ASCII_SCREEN_HEIGHT *2,
+        -10.0f, 10.0f, mvp.proj);
 
-glm_scale(mvp.model, (vec3){
-	1.0f / (float)ASCII_SCREEN_WIDTH,
-	1.0f / (float)ASCII_SCREEN_HEIGHT,
-	1.0f});
-
- //printf("writing %p\n", (void*)(&ctx->transform_ubo));
+//printf("writing %p\n", (void*)(&ctx->transform_ubo));
  memcpy(gpuBufferGetPtr(ctx->gpu.allocator, ctx->transform_ubo), &mvp, sizeof(struct GpuMvp));
 }
-
 void termMvAddCh(struct TermContext* gfx, int32_t x, int32_t y,
                  uint32_t unicode) {
   termMove(gfx, x, y);
