@@ -14,7 +14,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 -Wno-nullability-completeness")
 # Find required packages
 find_package(Vulkan REQUIRED)
 find_package(Threads REQUIRED)
-find_package(X11 REQUIRED)
+#find_package(X11 REQUIRED)
 find_package(glfw3 REQUIRED)
 #find_package(LuaJIT REQUIRED)
 

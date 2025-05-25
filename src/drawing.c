@@ -63,13 +63,26 @@ void termAddCh(struct TermContext* term, uint32_t unicode) {
 void updateMvpUbo(struct TermContext* ctx){
  struct GpuMvp mvp;
  glm_mat4_identity(mvp.model);
- glm_rotate(mvp.model, glm_rad(90), (vec3){0.0f, 0.0f, 1.0f});
- glm_lookat((vec3){2.0f, 2.0f, 2.0f},
-         (vec3){0.0f, 0.0f, 0.0f,},
-         (vec3){0.0f, 0.0f, 1.0f},
+ glm_mat4_identity(mvp.view);
+ glm_mat4_identity(mvp.proj);
+ glm_translate(mvp.model, (vec3){-1.0, -1.0, 0.0f});
+
+glm_scale(mvp.model, (vec3){
+	1.0f / (float)ASCII_SCREEN_WIDTH,
+	1.0f / (float)ASCII_SCREEN_HEIGHT,
+	1.0f});
+
+//mvp.proj[1][1] *= -1.0f;
+//printf("%d\n", ASCII_SCREEN_WIDTH);
+
+/* 
+glm_lookat((vec3){0.0f, 0.0f, -5.0f},
+         (vec3){1.0f, 0.0f, 0.0f,},
+         (vec3){0.0f, 0.0f, 0.0f},
          mvp.view);
+
  glm_perspective(glm_rad(45), 32.0f / 24.0f, 0, 10.0f, mvp.proj);
- mvp.proj[1][1] *= -1;
+*/
 
  //printf("writing %p\n", (void*)(&ctx->transform_ubo));
  memcpy(gpuBufferGetPtr(ctx->gpu.allocator, ctx->transform_ubo), &mvp, sizeof(struct GpuMvp));
