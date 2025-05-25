@@ -1,0 +1,86 @@
+[
+{
+  "directory": "/home/morpho/C/NovaExpressRL",
+  "command": "/usr/bin/c++  -I/usr/local/include -I/usr/X11R6/include  -g -O0 -Wno-nullability-completeness -std=gnu++17 -o CMakeFiles/vma.dir/extern/vma.cpp.o -c /home/morpho/C/NovaExpressRL/extern/vma.cpp",
+  "file": "/home/morpho/C/NovaExpressRL/extern/vma.cpp",
+  "output": "CMakeFiles/vma.dir/extern/vma.cpp.o"
+},
+{
+  "directory": "/home/morpho/C/NovaExpressRL",
+  "command": "/usr/bin/cc -Drogue_EXPORTS -I/usr/X11R6/include -isystem /usr/local/include  -g -O0 -Wall -Wextra -Wpedantic -Wno-nullability-extension -Wstrict-prototypes -Wold-style-definition -fdiagnostics-color=always -std=gnu11 -fPIE -o CMakeFiles/rogue.dir/src/allocator.c.o -c /home/morpho/C/NovaExpressRL/src/allocator.c",
+  "file": "/home/morpho/C/NovaExpressRL/src/allocator.c",
+  "output": "CMakeFiles/rogue.dir/src/allocator.c.o"
+},
+{
+  "directory": "/home/morpho/C/NovaExpressRL",
+  "command": "/usr/bin/cc -Drogue_EXPORTS -I/usr/X11R6/include -isystem /usr/local/include  -g -O0 -Wall -Wextra -Wpedantic -Wno-nullability-extension -Wstrict-prototypes -Wold-style-definition -fdiagnostics-color=always -std=gnu11 -fPIE -o CMakeFiles/rogue.dir/src/bios.c.o -c /home/morpho/C/NovaExpressRL/src/bios.c",
+  "file": "/home/morpho/C/NovaExpressRL/src/bios.c",
+  "output": "CMakeFiles/rogue.dir/src/bios.c.o"
+},
+{
+  "directory": "/home/morpho/C/NovaExpressRL",
+  "command": "/usr/bin/cc -Drogue_EXPORTS -I/usr/X11R6/include -isystem /usr/local/include  -g -O0 -Wall -Wextra -Wpedantic -Wno-nullability-extension -Wstrict-prototypes -Wold-style-definition -fdiagnostics-color=always -std=gnu11 -fPIE -o CMakeFiles/rogue.dir/src/controls.c.o -c /home/morpho/C/NovaExpressRL/src/controls.c",
+  "file": "/home/morpho/C/NovaExpressRL/src/controls.c",
+  "output": "CMakeFiles/rogue.dir/src/controls.c.o"
+},
+{
+  "directory": "/home/morpho/C/NovaExpressRL",
+  "command": "/usr/bin/cc -Drogue_EXPORTS -I/usr/X11R6/include -isystem /usr/local/include  -g -O0 -Wall -Wextra -Wpedantic -Wno-nullability-extension -Wstrict-prototypes -Wold-style-definition -fdiagnostics-color=always -std=gnu11 -fPIE -o CMakeFiles/rogue.dir/src/drawing.c.o -c /home/morpho/C/NovaExpressRL/src/drawing.c",
+  "file": "/home/morpho/C/NovaExpressRL/src/drawing.c",
+  "output": "CMakeFiles/rogue.dir/src/drawing.c.o"
+},
+{
+  "directory": "/home/morpho/C/NovaExpressRL",
+  "command": "/usr/bin/cc -Drogue_EXPORTS -I/usr/X11R6/include -isystem /usr/local/include  -g -O0 -Wall -Wextra -Wpedantic -Wno-nullability-extension -Wstrict-prototypes -Wold-style-definition -fdiagnostics-color=always -std=gnu11 -fPIE -o CMakeFiles/rogue.dir/src/dungeon.c.o -c /home/morpho/C/NovaExpressRL/src/dungeon.c",
+  "file": "/home/morpho/C/NovaExpressRL/src/dungeon.c",
+  "output": "CMakeFiles/rogue.dir/src/dungeon.c.o"
+},
+{
+  "directory": "/home/morpho/C/NovaExpressRL",
+  "command": "/usr/bin/cc -Drogue_EXPORTS -I/usr/X11R6/include -isystem /usr/local/include  -g -O0 -Wall -Wextra -Wpedantic -Wno-nullability-extension -Wstrict-prototypes -Wold-style-definition -fdiagnostics-color=always -std=gnu11 -fPIE -o CMakeFiles/rogue.dir/src/fov.c.o -c /home/morpho/C/NovaExpressRL/src/fov.c",
+  "file": "/home/morpho/C/NovaExpressRL/src/fov.c",
+  "output": "CMakeFiles/rogue.dir/src/fov.c.o"
+},
+{
+  "directory": "/home/morpho/C/NovaExpressRL",
+  "command": "/usr/bin/cc -Drogue_EXPORTS -I/usr/X11R6/include -isystem /usr/local/include  -g -O0 -Wall -Wextra -Wpedantic -Wno-nullability-extension -Wstrict-prototypes -Wold-style-definition -fdiagnostics-color=always -std=gnu11 -fPIE -o CMakeFiles/rogue.dir/src/main.c.o -c /home/morpho/C/NovaExpressRL/src/main.c",
+  "file": "/home/morpho/C/NovaExpressRL/src/main.c",
+  "output": "CMakeFiles/rogue.dir/src/main.c.o"
+},
+{
+  "directory": "/home/morpho/C/NovaExpressRL",
+  "command": "/usr/bin/cc -Drogue_EXPORTS -I/usr/X11R6/include -isystem /usr/local/include  -g -O0 -Wall -Wextra -Wpedantic -Wno-nullability-extension -Wstrict-prototypes -Wold-style-definition -fdiagnostics-color=always -std=gnu11 -fPIE -o CMakeFiles/rogue.dir/src/map.c.o -c /home/morpho/C/NovaExpressRL/src/map.c",
+  "file": "/home/morpho/C/NovaExpressRL/src/map.c",
+  "output": "CMakeFiles/rogue.dir/src/map.c.o"
+},
+{
+  "directory": "/home/morpho/C/NovaExpressRL",
+  "command": "/usr/bin/cc -Drogue_EXPORTS -I/usr/X11R6/include -isystem /usr/local/include  -g -O0 -Wall -Wextra -Wpedantic -Wno-nullability-extension -Wstrict-prototypes -Wold-style-definition -fdiagnostics-color=always -std=gnu11 -fPIE -o CMakeFiles/rogue.dir/src/mobs.c.o -c /home/morpho/C/NovaExpressRL/src/mobs.c",
+  "file": "/home/morpho/C/NovaExpressRL/src/mobs.c",
+  "output": "CMakeFiles/rogue.dir/src/mobs.c.o"
+},
+{
+  "directory": "/home/morpho/C/NovaExpressRL",
+  "command": "/usr/bin/cc -Drogue_EXPORTS -I/usr/X11R6/include -isystem /usr/local/include  -g -O0 -Wall -Wextra -Wpedantic -Wno-nullability-extension -Wstrict-prototypes -Wold-style-definition -fdiagnostics-color=always -std=gnu11 -fPIE -o CMakeFiles/rogue.dir/src/terrain.c.o -c /home/morpho/C/NovaExpressRL/src/terrain.c",
+  "file": "/home/morpho/C/NovaExpressRL/src/terrain.c",
+  "output": "CMakeFiles/rogue.dir/src/terrain.c.o"
+},
+{
+  "directory": "/home/morpho/C/NovaExpressRL",
+  "command": "/usr/bin/cc -Drogue_EXPORTS -I/usr/X11R6/include -isystem /usr/local/include  -g -O0 -Wall -Wextra -Wpedantic -Wno-nullability-extension -Wstrict-prototypes -Wold-style-definition -fdiagnostics-color=always -std=gnu11 -fPIE -o CMakeFiles/rogue.dir/src/ui.c.o -c /home/morpho/C/NovaExpressRL/src/ui.c",
+  "file": "/home/morpho/C/NovaExpressRL/src/ui.c",
+  "output": "CMakeFiles/rogue.dir/src/ui.c.o"
+},
+{
+  "directory": "/home/morpho/C/NovaExpressRL",
+  "command": "/usr/bin/cc -Drogue_EXPORTS -I/usr/X11R6/include -isystem /usr/local/include  -g -O0 -Wall -Wextra -Wpedantic -Wno-nullability-extension -Wstrict-prototypes -Wold-style-definition -fdiagnostics-color=always -std=gnu11 -fPIE -o CMakeFiles/rogue.dir/src/vulkan_backend.c.o -c /home/morpho/C/NovaExpressRL/src/vulkan_backend.c",
+  "file": "/home/morpho/C/NovaExpressRL/src/vulkan_backend.c",
+  "output": "CMakeFiles/rogue.dir/src/vulkan_backend.c.o"
+},
+{
+  "directory": "/home/morpho/C/NovaExpressRL",
+  "command": "/usr/bin/cc -Drogue_EXPORTS -I/usr/X11R6/include -isystem /usr/local/include  -g -O0 -Wall -Wextra -Wpedantic -Wno-nullability-extension -Wstrict-prototypes -Wold-style-definition -fdiagnostics-color=always -std=gnu11 -fPIE -o CMakeFiles/rogue.dir/src/wfc.c.o -c /home/morpho/C/NovaExpressRL/src/wfc.c",
+  "file": "/home/morpho/C/NovaExpressRL/src/wfc.c",
+  "output": "CMakeFiles/rogue.dir/src/wfc.c.o"
+}
+]
