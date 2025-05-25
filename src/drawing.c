@@ -72,18 +72,6 @@ glm_scale(mvp.model, (vec3){
 	1.0f / (float)ASCII_SCREEN_HEIGHT,
 	1.0f});
 
-//mvp.proj[1][1] *= -1.0f;
-//printf("%d\n", ASCII_SCREEN_WIDTH);
-
-/* 
-glm_lookat((vec3){0.0f, 0.0f, -5.0f},
-         (vec3){1.0f, 0.0f, 0.0f,},
-         (vec3){0.0f, 0.0f, 0.0f},
-         mvp.view);
-
- glm_perspective(glm_rad(45), 32.0f / 24.0f, 0, 10.0f, mvp.proj);
-*/
-
  //printf("writing %p\n", (void*)(&ctx->transform_ubo));
  memcpy(gpuBufferGetPtr(ctx->gpu.allocator, ctx->transform_ubo), &mvp, sizeof(struct GpuMvp));
 }
