@@ -584,6 +584,7 @@ int gpuPipelineCreate(struct GpuContext* gpu) {
   return 0;
 }
 
+
 struct TermContext* termCtxCreate(int width_in_tiles, int height_in_tiles) {
   struct TermContext* term = malloc(sizeof(struct TermContext));
   *term = (struct TermContext){0};
@@ -649,7 +650,6 @@ struct TermContext* termCtxCreate(int width_in_tiles, int height_in_tiles) {
   }
   glm_ivec2_zero(term->cursor);
 
-  term->layer = 0;
   term->atlas = 0;
   term->fg = 15;
   term->bg = 0;

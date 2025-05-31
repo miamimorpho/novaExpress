@@ -199,14 +199,14 @@ void fovPortal(struct MapPos camera, struct Portal portal, Bitmap* dst_mask,
 
 int fovDrawWorld(TermCtx term, struct Map* m, uint32_t x_in, uint32_t y_in,
                  Allocator allocator) {
-  int scr_width = ASCII_SCREEN_WIDTH;//termGetScreenWidth(term);
-  int scr_height = ASCII_SCREEN_HEIGHT;//termGetScreenHeight(term);
+  int scr_width = TILE_BUFFER_WIDTH;//termGetScreenWidth(term);
+  int scr_height = TILE_BUFFER_WIDTH;//termGetScreenHeight(term);
 
-  int dx = x_in - (term->width_in_tiles / 2);
-  int dy = y_in - (term->height_in_tiles / 2);
+  int dx = x_in - (TILE_BUFFER_WIDTH / 2);
+  int dy = y_in - (TILE_BUFFER_WIDTH / 2);
 
-  for(int y = 0; y < term->height_in_tiles; y++){
-    for(int x = 0; x < term->width_in_tiles; x++){
+  for(int y = 0; y < TILE_BUFFER_WIDTH; y++){
+    for(int x = 0; x < TILE_BUFFER_WIDTH; x++){
       struct Terra t = terraGet(m, dx + x, dy +y);
       termMvAddCh(term, x, y, t.tile.unicode); 
     }

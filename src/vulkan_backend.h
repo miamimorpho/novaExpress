@@ -23,7 +23,7 @@
 #define ATLAS_WIDTH 32
 /* TO REMOVE */
 #define ASCII_TILE_SIZE 8
-#define ASCII_SCALE 2.0f
+//#define ASCII_SCALE 2.0f
 
 #define cfg_format (VkFormat) VK_FORMAT_B8G8R8A8_SRGB
 
@@ -146,6 +146,8 @@ struct GpuBuffer* gpuBufferNext(VmaAllocator, struct GpuBuffer*);
 /* Textures */
 int transitionImageLayout(VkCommandBuffer, VkImage, VkImageLayout, VkImageLayout);
 int gpuImageToGpu(struct GpuContext, unsigned char*, int, int, int, struct GpuImage*);
+void gpuImageDestroy(VmaAllocator, struct GpuImage);
 int gfxTexturesDescriptorsUpdate(struct GpuContext, struct TermTileset*, uint32_t);
+
 
 #endif  // VULKAN_META_H

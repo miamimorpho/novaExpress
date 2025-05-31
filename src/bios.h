@@ -8,8 +8,8 @@
 #include "../extern/cglm/include/cglm/cglm.h"
 
 /* Renderer Settings */
-#define ASCII_SCREEN_WIDTH 32
-#define ASCII_SCREEN_HEIGHT 24
+#define TILE_BUFFER_WIDTH 32
+#define TILE_BUFFER_SIZE ( TILE_BUFFER_WIDTH * TILE_BUFFER_WIDTH )
 
 /* Unicode Magic Numbers */
 #define PUA_START (0xE000)  // 57343
@@ -37,8 +37,6 @@ struct GpuMvp {
 struct TermContext {
   GLFWwindow* window;
   struct GpuContext gpu; 
-  int height_in_tiles;
-  int width_in_tiles;
 
   struct TermTileset tile_data[MAX_TILESETS];
   struct GpuBuffer tile_indices;
@@ -55,6 +53,7 @@ struct TermContext {
   // ui layout state
   // make argument
   ivec2 cursor;
+  int32_t layer;
   int32_t atlas;
   int32_t fg;
   int32_t bg;
@@ -66,14 +65,6 @@ int termCtxDestroy(struct TermContext*);
 int gfxTilesetLoad(struct TermContext*, const char*);
 
 /* drawing.c */
-#define TERM_WAIT(term, cond) \
-  termDrawBegin(term);        \
-  while (!(cond)) {           \
-    termDrawPushZ(term);      \
-    termDrawRefresh(term);    \
-  }                           \
-  termDrawEnd(term);
-
 void termDrawBegin(struct TermContext*);
 void termMove(struct TermContext*, int32_t x, int32_t y);
 void termAtlas(struct TermContext*, int32_t);
@@ -82,7 +73,6 @@ void termBg(struct TermContext*, int32_t);
 void termAddCh(struct TermContext*, uint32_t);
 void termMvAddCh(struct TermContext*, int32_t, int32_t, uint32_t);
 void termPrint(struct TermContext*, const char*);
-void termDrawPushZ(struct TermContext*);
 void termDrawRefresh(struct TermContext*);
 void termDrawEnd(struct TermContext*);
 

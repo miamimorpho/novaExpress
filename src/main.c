@@ -2,8 +2,8 @@
 
 int main(void) {
   TermCtx term = termCtxCreate(
-          ASCII_SCREEN_WIDTH,
-          ASCII_SCREEN_HEIGHT);
+          TILE_BUFFER_WIDTH,
+          TILE_BUFFER_WIDTH);
 
   gfxTilesetLoad(term, "textures/color.png");
   gfxTilesetLoad(term, "textures/icl8x8u.bdf");
@@ -27,6 +27,10 @@ int main(void) {
   portalCreate(map, 16, 16, 0, 0);
 
   Allocator fov_allocator = arenaCreate(FOV_ALLOCATOR_RAM_SIZE, NULL);
+
+  term->layer = 1;
+  termPrint(term, "test");
+  term->layer = 0;
 
   while (1) {
     fovDrawWorld(term, &map, player->hash_pos_entry.x, player->hash_pos_entry.y, fov_allocator);

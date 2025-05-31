@@ -30,7 +30,7 @@ void dungeonBuild(struct Map* m) {
     }
   }
 
-  wfc_export(wfc, "output_test.png");
+  //wfc_export(wfc, "output_test.png");
   wfc_img_destroy(sample);
   wfc_destroy(wfc);
 }

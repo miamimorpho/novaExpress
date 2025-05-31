@@ -434,10 +434,12 @@ int gpuDevicesCreate(struct GpuContext* gpu, GLFWwindow* glfw_window) {
   }
 
   /* Requested Extensions */
-  const char* dev_ext_names[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-                                 VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
-                                 "VK_EXT_descriptor_indexing"};
-  const unsigned int dev_ext_c = 3;
+  const char* dev_ext_names[] = {
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+    VK_KHR_MAINTENANCE1_EXTENSION_NAME,
+    VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
+    "VK_EXT_descriptor_indexing"};
+  const unsigned int dev_ext_c = 4;
 
   /* Available Extensions */
   uint32_t avail_ext_c;

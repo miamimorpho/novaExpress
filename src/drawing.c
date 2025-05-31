@@ -17,6 +17,7 @@
 
 #define MASK(bits) ((1u << (bits)) - 1)
 
+// TODO: standardise bit packing through code
 static inline uint32_t glyphPackUnicode(struct TermContext* term,
                                         uint32_t unicode, uint32_t atlas,
                                         uint32_t fg, uint32_t bg) {
@@ -37,14 +38,14 @@ uint32_t pack16into32(uint16_t a, uint16_t b) {
 }
 
 void termMove(struct TermContext* gfx, int32_t x, int32_t y) {
-  gfx->cursor[0] = iMin(x, gfx->width_in_tiles);
-  gfx->cursor[1] = iMin(y, gfx->height_in_tiles);
+  gfx->cursor[0] = iMin(x, TILE_BUFFER_WIDTH);
+  gfx->cursor[1] = iMin(y, TILE_BUFFER_WIDTH);
 }
 
 void termAddCh(struct TermContext* term, uint32_t unicode) {
-  if (term->cursor[0] > term->width_in_tiles) {
+  if (term->cursor[0] > TILE_BUFFER_WIDTH) {
     term->cursor[1] += 1;
-    term->cursor[0] -= term->width_in_tiles;
+    term->cursor[0] -= TILE_BUFFER_WIDTH;
   }
 
   struct GpuPackedTile dst = {
@@ -52,8 +53,9 @@ void termAddCh(struct TermContext* term, uint32_t unicode) {
       .unicode_atlas_and_colors =
           glyphPackUnicode(term, unicode, term->atlas, term->fg, term->bg)};
 
-  size_t layer_offset = (term->width_in_tiles * term->height_in_tiles) * 0;
-  size_t i = ( term->cursor[1] * term->width_in_tiles ) + term->cursor[0];
+  size_t layer_offset = TILE_BUFFER_SIZE * term->layer;
+  // TODO add layered rendering
+  size_t i = ( term->cursor[1] * TILE_BUFFER_WIDTH ) + term->cursor[0];
 
   struct GpuPackedTile* b = gpuBufferGetPtr(term->gpu.allocator, term->tile_indices);
   b[layer_offset + i] = dst;
@@ -61,27 +63,47 @@ void termAddCh(struct TermContext* term, uint32_t unicode) {
 }
 
 void updateMvpUbo(struct TermContext* ctx){
-
-//static float rot = 0;
- //      rot += 0.1;
-
- struct GpuMvp mvp;
- glm_mat4_identity(mvp.model);
-
- glm_mat4_identity(mvp.view);
- vec3 eye = {0.0f, 0.0f, 5.0f};    // Camera position
- vec3 center = {0.0f, 0.0f, 0.0f};    // Look at origin
- vec3 up = {0.0f, 1.0f, 0.0f};        // Up vector
- glm_lookat(eye, center, up, mvp.view);
-
- glm_mat4_identity(mvp.proj);
- glm_ortho(0, ASCII_SCREEN_WIDTH *2,
-        0, ASCII_SCREEN_HEIGHT *2,
-        -10.0f, 10.0f, mvp.proj);
-
-//printf("writing %p\n", (void*)(&ctx->transform_ubo));
- memcpy(gpuBufferGetPtr(ctx->gpu.allocator, ctx->transform_ubo), &mvp, sizeof(struct GpuMvp));
+    struct GpuMvp mvp;
+    glm_mat4_identity(mvp.model);
+   
+    static int rot = -135;
+    
+    // Classic isometric: 30° elevation, 45° rotation
+    float dist = 70;
+    vec3 center = {
+	TILE_BUFFER_WIDTH / 2,
+	TILE_BUFFER_WIDTH / 2,
+	0
+    };
+    vec3 eye = {
+        center[0] + dist * cos(glm_rad(rot)) * cos(glm_rad(30)),
+        center[1] + dist * sin(glm_rad(rot)) * cos(glm_rad(30)), 
+        center[2] + dist * sin(glm_rad(30))
+    };
+    vec3 up = {0, 0, 1};
+    glm_lookat(eye, center, up, mvp.view);
+    int scr_width = TILE_BUFFER_WIDTH * 0.4;
+    int scr_height = TILE_BUFFER_WIDTH * 0.4;
+   
+    glm_ortho(-scr_width, scr_width, 
+              -scr_height, scr_height, 
+              0.01f, 100.0f, mvp.proj);
+    
+    memcpy(gpuBufferGetPtr(ctx->gpu.allocator, ctx->transform_ubo), &mvp, sizeof(struct GpuMvp));
 }
+
+void updateMvpUbo2d(struct TermContext* ctx){
+    struct GpuMvp mvp;
+    glm_mat4_identity(mvp.model);
+    glm_mat4_identity(mvp.view);
+    
+    glm_ortho(0, TILE_BUFFER_WIDTH,
+	      0, TILE_BUFFER_WIDTH,
+	      -1.0f, 1.0f, mvp.proj);
+    
+    memcpy(gpuBufferGetPtr(ctx->gpu.allocator, ctx->transform_ubo), &mvp, sizeof(struct GpuMvp));
+}
+
 void termMvAddCh(struct TermContext* gfx, int32_t x, int32_t y,
                  uint32_t unicode) {
   termMove(gfx, x, y);
@@ -127,7 +149,7 @@ int gfxBakeCommandBuffer(struct TermContext* term) {
   transitionImageLayout(cmd_b, gpu->swapchain_images[gpu->swapchain_x],
                         VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-
+  
   VkClearValue clear_value;
   clear_value.color = (VkClearColorValue){{0.0f, 0.0f, 0.0f, 1.0f}};
 
@@ -166,8 +188,8 @@ int gfxBakeCommandBuffer(struct TermContext* term) {
   VkViewport viewport = {
       .x = 0.0f,
       .y = 0.0f,
-      .width = gpu->extent.width * ASCII_SCALE,
-      .height = gpu->extent.height * ASCII_SCALE,
+      .width = gpu->extent.width, //* ASCII_SCALE,
+      .height = gpu->extent.height, //* ASCII_SCALE,
       .minDepth = 0.0f,
       .maxDepth = 1.0f,
   };
@@ -277,4 +299,3 @@ void termDrawRefresh(struct TermContext* term) {
 
   termPollInput(term);  
 }
-
