@@ -1,4 +1,4 @@
-#version 450
+#version 460
 #define ASCII_SCR_WIDTH 32
 #define ASCII_SCR_HEIGHT 24
 #define ATLAS_WIDTH 32
@@ -14,9 +14,6 @@ layout(set = 0, binding = 0) uniform UniformBufferObject {
     mat4 view;
     mat4 proj;
 } ubo;
-
-// Add depth/height data per character
-layout(set = 0, binding = 1) uniform sampler2D depthTexture; // Optional: for height variation
 
 layout(location = 1) in uint unicode_atlas_and_colors;
 
@@ -43,9 +40,15 @@ vec2 encodingToUV(vec2 quadUV, uint encoding) {
 }
 
 void main() {
+
     // Calculate grid position
-    vec2 mod_pos = vec2(gl_InstanceIndex % ASCII_SCR_WIDTH,
-                        gl_InstanceIndex / ASCII_SCR_WIDTH);
+    
+    // BUG: the spec says gl_InstanceIndex should return an int
+    // relative to vkDrawIndirectCommand.firstInstance
+    // on intel graphics, this does not happen so we subtract gl_BaseInstance
+    int i = gl_InstanceIndex; //- gl_BaseInstance;
+    vec2 mod_pos = vec2(i % ASCII_SCR_WIDTH,
+                        i / ASCII_SCR_WIDTH);
     
     // Get base quad vertex
     vec2 quadVertex = quadVertices[gl_VertexIndex];
