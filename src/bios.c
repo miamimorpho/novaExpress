@@ -223,8 +223,7 @@ uint8_t* bdfFileLoad(const char* filename, struct TermTileset* font) {
   return pixels;
 }
 
-
-int gfxTilesetLoad(struct TermContext* term, const char* filename) {
+int gpuTilesetLoad(struct TermContext* term, const char* filename) {
   struct TermTileset* sets = term->tile_data;
 
   int atlas = -1;
@@ -250,7 +249,7 @@ int gfxTilesetLoad(struct TermContext* term, const char* filename) {
   if (gpuImageToGpu(term->gpu, pixels, dst->image_w, dst->image_h,
                     dst->channels, &dst->image) < 0)
     return 1;
-  gfxTexturesDescriptorsUpdate(term->gpu, sets, atlas + 1);
+  gpuTexturesDescriptorsUpdate(term->gpu, sets, atlas + 1);
   /* stbi_free() is just a wrapper for free() */
   free(pixels);
 
@@ -260,10 +259,67 @@ int gfxTilesetLoad(struct TermContext* term, const char* filename) {
 int gpuTilesetsFree(struct TermContext* term) {
   for (int i = 0; i < MAX_TILESETS; i++) {
     if (term->tile_data[i].image.handle != VK_NULL_HANDLE) {
-      gpuImageDestroy(term->gpu.allocator, term->tile_data[i].image);
+      gpuImageDestroy(term->gpu, term->tile_data[i].image);
     }
   }
   return 0;
+}
+
+/* Isometric, Rot -135, Elev 30
+ * Top Dow, Rot -90, Elev 90
+ *
+ *
+ */
+void cameraMatrix(mat4 dest, int rot, int elev){
+    //struct GpuMvp mvp;
+    mat4 model;
+    glm_mat4_identity(model);
+   
+    // Classic isometric: 30° elevation, 45° rotation
+    float dist = 70;
+    vec3 center = {
+	TILE_BUFFER_WIDTH / 2,
+	TILE_BUFFER_WIDTH / 2,
+	0
+    };
+    vec3 eye = {
+        center[0] + dist * cos(glm_rad(rot)) * cos(glm_rad(elev)),
+        center[1] + dist * sin(glm_rad(rot)) * cos(glm_rad(elev)), 
+        center[2] + dist * sin(glm_rad(elev))
+    };
+    vec3 up = {0};
+    if(elev >= 90 ){
+        up[1] = 1;
+        up[2] = 0;
+    }else{
+        up[1] = 0;
+        up[2] = 1;
+    }
+
+    mat4 view;
+    glm_lookat(eye, center, up, view);
+    int scr_width = TILE_BUFFER_WIDTH * 0.4;
+    int scr_height = TILE_BUFFER_WIDTH * 0.4;
+   
+    mat4 proj;
+    glm_ortho(-scr_width, scr_width, 
+              -scr_height, scr_height, 
+              0.01f, 100.0f, proj);
+
+    glm_mat4_mulN((mat4 *[]){&proj, &view, &model}, 3, dest);
+}
+
+// used for debugging only
+void camera2D(mat4 dest){
+    mat4 model, view, proj;
+    glm_mat4_identity(model);
+    glm_mat4_identity(view);
+    
+    glm_ortho(0, TILE_BUFFER_WIDTH,
+	      0, TILE_BUFFER_WIDTH,
+	      -1.0f, 1.0f, proj);
+    
+    glm_mat4_mulN((mat4 *[]){&proj, &view, &model}, 3, dest);
 }
 
 void termPollInput(struct TermContext* term) {
@@ -276,8 +332,9 @@ void termPollInput(struct TermContext* term) {
   double xpos, ypos;
   glfwGetCursorPos(term->window, &xpos, &ypos);
 
-  input_.mouse_x_norm = xpos / term->gpu.extent.width;
-  input_.mouse_y_norm = ypos / term->gpu.extent.height;
+  // TODO: add mouse input back
+  //input_.mouse_x_norm = xpos / term->gpu.extent.width;
+  //input_.mouse_y_norm = ypos / term->gpu.extent.height;
 }
 
 struct TermInputComm termGetInput(struct TermContext* term) {
@@ -316,7 +373,7 @@ void termInputContextCreate(GLFWwindow* window) {
 }
 
 /* need a seperate buffer per frame in flight */
-int transformDescriptorsCreate(struct GpuContext* gpu, struct GpuBuffer* buffers, size_t count){
+int frameDescriptorsCreate(struct GpuContext* gpu, struct GpuBuffer* buffers, size_t count){
 
   /* Transformation Buffer */
   VkDescriptorSetLayoutBinding transform_binding = {
@@ -332,30 +389,30 @@ int transformDescriptorsCreate(struct GpuContext* gpu, struct GpuBuffer* buffers
       .pBindings = &transform_binding,
   };
 
-  if(vkCreateDescriptorSetLayout(gpu->ldev, &layout_info, NULL, &gpu->transform_descriptors_layout)) abort();
+  if(vkCreateDescriptorSetLayout(gpu->ldev, &layout_info, NULL, &gpu->frame_descriptors_layout)) abort();
 
   VkDescriptorSetAllocateInfo alloc_info = {
       .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
       .descriptorPool = gpu->descriptor_pool,
       .descriptorSetCount = FRAMES_IN_FLIGHT,
-      .pSetLayouts = &gpu->transform_descriptors_layout
+      .pSetLayouts = &gpu->frame_descriptors_layout
   };
 
-  VK_CHECK(vkAllocateDescriptorSets(gpu->ldev, &alloc_info, &gpu->transform_descriptors));
-  
-  for(size_t i = 0; i < FRAMES_IN_FLIGHT; i++){
-    gpuBufferCreate(gpu->allocator, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
-            sizeof(struct GpuMvp), buffers);
+  VK_CHECK(vkAllocateDescriptorSets(gpu->ldev, &alloc_info, &gpu->frame_descriptors));
+
+  for(size_t i = 0; i < count; i++){
+    gpuBufferCreate(gpu, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, 
+            sizeof(struct GpuFrameUniform), &buffers[i]);
     printf("created %p\n", (void*)buffers);
     VkDescriptorBufferInfo buffer_info = {
         .buffer = buffers[i].handle,
         .offset = 0,
-        .range = sizeof(struct GpuMvp),
+        .range = sizeof(struct GpuFrameUniform),
     };
 
     VkWriteDescriptorSet descriptor_write = {
         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-        .dstSet = gpu->transform_descriptors,
+        .dstSet = gpu->frame_descriptors,
         .dstBinding = 0,
         .dstArrayElement = 0,
         .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -370,12 +427,12 @@ int transformDescriptorsCreate(struct GpuContext* gpu, struct GpuBuffer* buffers
 int gpuPipelineCreate(struct GpuContext* gpu) {
   VkPushConstantRange push_constant = {
       .offset = 0,
-      .size = sizeof(GfxPushConstant),
+      .size = sizeof(struct GpuPushConstant),
       .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
   };
 
   VkDescriptorSetLayout descriptor_layouts[2] = {
-     gpu->transform_descriptors_layout,  gpu->texture_descriptors_layout
+     gpu->frame_descriptors_layout,  gpu->texture_descriptors_layout
   };
 
   VkPipelineLayoutCreateInfo pipeline_layout_info = {
@@ -436,37 +493,40 @@ int gpuPipelineCreate(struct GpuContext* gpu) {
       .dynamicStateCount = sizeof(dynamic_states) / sizeof(dynamic_states[0]),
       .pDynamicStates = dynamic_states};
 
+
   // Vertex Buffer Creation
-  int attribute_count = 2;
-  VkVertexInputAttributeDescription attribute_descriptions[attribute_count];
+  VkVertexInputBindingDescription vtx_bindings[] = {
+      {
+        .binding = 0,
+        .stride = sizeof(vec2),
+        .inputRate = VK_VERTEX_INPUT_RATE_INSTANCE,
+      },
+      {
+          .binding = 1,
+          .stride = sizeof(uint32_t),
+          .inputRate = VK_VERTEX_INPUT_RATE_INSTANCE,
+      }};
 
-  /* some instance attributes are two UINT16 packed
-   * into a 32bit number */
-  // Position PACKED
-  attribute_descriptions[0].binding = 0;
-  attribute_descriptions[0].location = 0;
-  attribute_descriptions[0].format = VK_FORMAT_R32_UINT;
-  attribute_descriptions[0].offset = offsetof(struct GpuPackedTile, pos);
-
-  // Glyph Encoding ( x, y ) PACKED
-  attribute_descriptions[1].binding = 0;
-  attribute_descriptions[1].location = 1;
-  attribute_descriptions[1].format = VK_FORMAT_R32_UINT;
-  attribute_descriptions[1].offset =
-      offsetof(struct GpuPackedTile, unicode_atlas_and_colors);
-
-  VkVertexInputBindingDescription binding_description = {
-      .binding = 0,
-      .stride = sizeof(struct GpuPackedTile),
-      .inputRate = VK_VERTEX_INPUT_RATE_INSTANCE,
-  };
+  VkVertexInputAttributeDescription vtx_attributes[] = {
+    {
+        .binding = 0,
+        .location = 0,
+        .format = VK_FORMAT_R32G32_SFLOAT,
+        .offset = 0,
+    },
+    {
+        .binding = 1,
+        .location = 1,
+        .format = VK_FORMAT_R32_UINT,
+        .offset = 0,
+    }};
 
   VkPipelineVertexInputStateCreateInfo vertex_input_info = {
       .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-      .vertexBindingDescriptionCount = 1,
-      .vertexAttributeDescriptionCount = attribute_count,
-      .pVertexBindingDescriptions = &binding_description,
-      .pVertexAttributeDescriptions = attribute_descriptions,
+      .vertexBindingDescriptionCount = 2,
+      .vertexAttributeDescriptionCount = 2,
+      .pVertexBindingDescriptions = vtx_bindings,
+      .pVertexAttributeDescriptions = vtx_attributes,
   };
 
   VkPipelineInputAssemblyStateCreateInfo input_assembly_info = {
@@ -586,7 +646,7 @@ int gpuPipelineCreate(struct GpuContext* gpu) {
 
 struct TermContext* termCtxCreate(int width_in_tiles, int height_in_tiles) {
   struct TermContext* term = malloc(sizeof(struct TermContext));
-  *term = (struct TermContext){0};
+  *term = (struct TermContext){0}; // initialise to 0
 
   if (!glfwInit()) {
     printf("glfw init failure\n");
@@ -602,51 +662,53 @@ struct TermContext* termCtxCreate(int width_in_tiles, int height_in_tiles) {
     abort();
   }
 
-  gpuDevicesCreate(&term->gpu, term->window);
+  term->gpu = malloc(sizeof(struct GpuContext));
+  gpuDevicesCreate(term->gpu, term->window);
 
   int width_px, height_px;
   glfwGetWindowSize(term->window, &width_px, &height_px);
-  gpuSwapchainCreate(&term->gpu, width_px, height_px);
-  term->gpu.swapchain_x = 0;
-  term->gpu.frame_x = 0;
+  gpuSwapchainCreate(term->gpu, width_px, height_px);
+  term->gpu->swapchain_x = 0;
+  term->gpu->frame_x = 0;
 
-  gpuAuxiliaryCreate(&term->gpu);
+  gpuAuxiliaryCreate(term->gpu);
 
-  gpuTextureDescriptorsCreate(&term->gpu);
+  gpuTextureDescriptorsCreate(term->gpu);
 
-  transformDescriptorsCreate(&term->gpu, &term->transform_ubo, 1);
-  gpuPipelineCreate(&term->gpu);
+  term->frame_ubo = calloc( FRAMES_IN_FLIGHT, sizeof(struct GpuBuffer));
+  frameDescriptorsCreate(term->gpu, term->frame_ubo, FRAMES_IN_FLIGHT);
+  gpuPipelineCreate(term->gpu);
 
   termInputContextCreate(term->window);
   
   term->allocator = arenaCreate( 5 * MB, NULL);
-
-  //term->width_in_tiles = width_in_tiles;
-  //term->height_in_tiles = height_in_tiles;
-  //int tile_buffer_size = width_in_tiles * height_in_tiles;
   
-  gpuBufferCreate(term->gpu.allocator,
+  gpuBufferCreate(term->gpu,
 		  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-		  MAX_LAYERS * TILE_BUFFER_SIZE * sizeof(struct GpuPackedTile),
+		  MAX_LAYERS * TILE_BUFFER_SIZE * sizeof(uint32_t),
 		  &term->tile_indices);
 
-  gpuBufferCreate(term->gpu.allocator,
-		  VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
-                  MAX_LAYERS * sizeof(VkDrawIndirectCommand),
-                  &term->indirect);
+  term->draw_push_const = 
+      fatPtrCreate(MAX_LAYERS, sizeof(struct GpuPushConstant), term->allocator);
 
-  VkDrawIndirectCommand* indirect_mmap_p = 
-      gpuBufferGetPtr(term->gpu.allocator, term->indirect);
-  
-  for(int i = 0; i < MAX_LAYERS; i++){
-    VkDrawIndirectCommand src = {
-        .vertexCount = 6,
-        .instanceCount = TILE_BUFFER_SIZE,
-        .firstVertex = 0,
-        .firstInstance = (i * TILE_BUFFER_SIZE)
-    };
-    indirect_mmap_p[i] = src; 
-  }
+  term->draw_push_const[0].cam_mode = 1;
+  term->draw_push_const[1].cam_mode = 0;
+
+  struct GpuFrameUniform frame_ubo;
+  camera2D(frame_ubo.cam_flat); //-90, 90);
+  cameraMatrix(frame_ubo.cam_ortho, -90, 90);
+  gpuBufferPush(term->gpu, &term->frame_ubo[0], &frame_ubo, sizeof(frame_ubo));
+
+  gpuBufferCreate(term->gpu,
+          VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+          MAX_SPRITES * sizeof(uint32_t),
+          &term->sprite_indices);
+
+  gpuBufferCreate(term->gpu,
+          VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+          MAX_SPRITES * sizeof(vec2),
+          &term->sprite_pos_arr);
+
   glm_ivec2_zero(term->cursor);
 
   term->layer = 0;
@@ -658,22 +720,21 @@ struct TermContext* termCtxCreate(int width_in_tiles, int height_in_tiles) {
 }
 
 int termCtxDestroy(struct TermContext* term) {
-  struct GpuContext gpu = term->gpu;
+  struct GpuContext* gpu = term->gpu;
 
   // End last frame
   VkResult result;
-  for (unsigned int i = 0; i < gpu.frame_c; i++) {
-    result = vkWaitForFences(gpu.ldev, 1, &gpu.fence[i], VK_TRUE, UINT32_MAX);
+  for (unsigned int i = 0; i < gpu->frame_c; i++) {
+    result = vkWaitForFences(gpu->ldev, 1, &gpu->fence[i], VK_TRUE, UINT32_MAX);
     if (result == VK_TIMEOUT) {
       printf("FATAL: VkWaitForFences timed out\n");
       // protection from deadlocks
       abort();
     }
-    vkResetCommandBuffer(gpu.cmd_buffer[i], 0);
+    vkResetCommandBuffer(gpu->cmd_buffer[i], 0);
   }
 
-  gpuBufferDestroy(gpu.allocator, &term->tile_indices);
-  gpuBufferDestroy(gpu.allocator, &term->indirect);
+  gpuBufferDestroy(gpu->allocator, &term->tile_indices);
 
   gpuTilesetsFree(term);
 

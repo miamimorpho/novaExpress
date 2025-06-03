@@ -34,7 +34,7 @@ void shadowcastRenderTile(ShadowcastVTable vtable_ptr, uint32_t x, uint32_t y,
   closure->term->atlas = t.atlas;
   closure->term->fg = t.fg;
   closure->term->bg = t.bg;
-  termMvAddCh(closure->term, scr_x, scr_y, t.unicode);
+  tileMvAdd(closure->term, scr_x, scr_y, t.unicode);
 }
 
 /* turns a shadowcast coordinate (row_depth,row_col)
@@ -208,7 +208,7 @@ int fovDrawWorld(TermCtx term, struct Map* m, uint32_t x_in, uint32_t y_in,
   for(int y = 0; y < TILE_BUFFER_WIDTH; y++){
     for(int x = 0; x < TILE_BUFFER_WIDTH; x++){
       struct Terra t = terraGet(m, dx + x, dy +y);
-      termMvAddCh(term, x, y, t.tile.unicode); 
+      tileMvAdd(term, x, y, t.tile.unicode); 
     }
   }
  

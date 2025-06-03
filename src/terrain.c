@@ -36,7 +36,6 @@ struct MapChunk* mapChunkInsert(struct Map* m, uint32_t x, uint32_t y) {
     printf("out of memory for chunks\n");
     return NULL;
   }
-  printf("added to posHead %p\n", (void*)ret);
 
   ret->blocks_view_bmp = bitmapCreate(CHUNK_LEN, CHUNK_LEN, m->arena);
   ret->blocks_move_bmp = bitmapCreate(CHUNK_LEN, CHUNK_LEN, m->arena);

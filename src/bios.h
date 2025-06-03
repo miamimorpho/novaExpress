@@ -24,34 +24,31 @@ struct TermInputComm {
   double mouse_y;
 };
 
-typedef struct {
-  vec2 screen_size_px;
-} GfxPushConstant;
+struct GpuPushConstant{
+    int cam_mode;
+    int sprite_mode;
+};
 
-struct GpuMvp {
-   mat4 model;
-   mat4 view;
-   mat4 proj;
+struct GpuFrameUniform {
+   mat4 cam_flat;
+   mat4 cam_ortho;
 };
 
 struct TermContext {
   GLFWwindow* window;
-  struct GpuContext gpu; 
-
+  struct GpuContext* gpu; 
   struct TermTileset tile_data[MAX_TILESETS];
-  struct GpuBuffer tile_indices;
-  struct GpuBuffer indirect;
-  // todo the indirect buffer should also behave as a 
-  // layer control register, allowing the screen to be offset
-  // by pixel accuracy and maybe later tilt the entire render
-  // mode 7
 
-  struct GpuBuffer transform_ubo;
+  struct GpuBuffer* frame_ubo;              // per frame data
+  struct GpuPushConstant* draw_push_const;  // per draw data
+  struct GpuBuffer tile_indices;            // per quad data
+
+  size_t sprite_count;
+  struct GpuBuffer sprite_pos_arr;
+  struct GpuBuffer sprite_indices;
 
   Allocator allocator;
 
-  // ui layout state
-  // make argument
   ivec2 cursor;
   int32_t layer;
   int32_t atlas;
@@ -62,17 +59,22 @@ struct TermContext {
 /* Init + Settings */
 struct TermContext* termCtxCreate(int, int);
 int termCtxDestroy(struct TermContext*);
-int gfxTilesetLoad(struct TermContext*, const char*);
+int gpuTilesetLoad(struct TermContext*, const char*);
 
 /* drawing.c */
 void termDrawBegin(struct TermContext*);
-void termMove(struct TermContext*, int32_t x, int32_t y);
+
+void tileMoveSafe(struct TermContext*, int32_t x, int32_t y);
 void termAtlas(struct TermContext*, int32_t);
 void termFg(struct TermContext*, int32_t);
 void termBg(struct TermContext*, int32_t);
-void termAddCh(struct TermContext*, uint32_t);
-void termMvAddCh(struct TermContext*, int32_t, int32_t, uint32_t);
-void termPrint(struct TermContext*, const char*);
+void tileAdd(struct TermContext*, uint32_t);
+void tileMvAdd(struct TermContext*, int32_t, int32_t, uint32_t);
+void tilePrint(struct TermContext*, const char*);
+
+int spriteAdd(struct TermContext*, const vec2*, const uint32_t*, size_t);
+int spriteMove(struct TermContext* term, vec2, size_t, size_t);
+
 void termDrawRefresh(struct TermContext*);
 void termDrawEnd(struct TermContext*);
 

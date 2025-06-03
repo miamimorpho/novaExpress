@@ -1,21 +1,19 @@
 #version 460
 #define ASCII_SCR_WIDTH 32
-#define ASCII_SCR_HEIGHT 24
 #define ATLAS_WIDTH 32
 #define PALETTE_SIZE 16.0
-#define TILE_SIZE 8
+
+layout(location = 0) in vec2 in_position; // Only used in sprite mode
+layout(location = 1) in uint unicode_atlas_and_colors;
 
 layout(push_constant) uniform PushConstants {
-    vec2 screen_size;
+    int cam_mode;
+    int sprite_mode;
 } constants;
 
 layout(set = 0, binding = 0) uniform UniformBufferObject {
-    mat4 model;
-    mat4 view;
-    mat4 proj;
+    mat4 camera_matrices[2];
 } ubo;
-
-layout(location = 1) in uint unicode_atlas_and_colors;
 
 layout(location = 0) out vec2 unicodeUV;
 layout(location = 1) flat out uint atlas_index;
@@ -32,6 +30,7 @@ vec2 quadVertices[6] = {
     vec2(0, 1), vec2(1, 1), vec2(1, 0)
 };
 
+// Maps the UV coordinates around a quad from a texture encoding
 vec2 encodingToUV(vec2 quadUV, uint encoding) {
     uint tex_col = uint(mod(float(encoding), ATLAS_WIDTH));
     uint tex_row = encoding / ATLAS_WIDTH;
@@ -41,40 +40,43 @@ vec2 encodingToUV(vec2 quadUV, uint encoding) {
 
 void main() {
 
-    // Calculate grid position
+    // POSITIONING
+    vec2 mod_pos = vec2(0, 0);
+    if(constants.sprite_mode == 0){
     
-    // BUG: the spec says gl_InstanceIndex should return an int
-    // relative to vkDrawIndirectCommand.firstInstance
-    // on intel graphics, this does not happen so we subtract gl_BaseInstance
-    int i = gl_InstanceIndex; //- gl_BaseInstance;
-    vec2 mod_pos = vec2(i % ASCII_SCR_WIDTH,
-                        i / ASCII_SCR_WIDTH);
+        // BUG: the spec says gl_InstanceIndex should 
+        // return an int relative to vkDraw.firstInstance
+        // on intel graphics, this does not happen so we subtract gl_BaseInstance    
     
-    // Get base quad vertex
-    vec2 quadVertex = quadVertices[gl_VertexIndex];
-    
-    // Create 3D position from 2D grid
-    vec3 worldPos = vec3(
-        mod_pos.x + quadVertex.x,   // Center X
-        mod_pos.y + quadVertex.y,  // Center Z
-        0.0                        // Base Y (ground level)
-    );
-    
-    // Optional: Add height variation based on character or depth texture
-    // vec2 depthUV = mod_pos / vec2(ASCII_SCR_WIDTH, ASCII_SCR_HEIGHT);
-    // float height = texture(depthTexture, depthUV).r * 5.0; // Scale height
-    // worldPos.y += height;
-    
-    // Transform to clip space
-    gl_Position = ubo.proj * ubo.view * ubo.model * vec4(worldPos, 1.0);
-    
+        int i = gl_InstanceIndex - gl_BaseInstance;
+        mod_pos = vec2(i % ASCII_SCR_WIDTH,
+                            i / ASCII_SCR_WIDTH);
+    }else{ // sprite mode
+        mod_pos = in_position;
+    }
+
+    vec4 worldPos = vec4(
+        mod_pos + quadVertices[gl_VertexIndex],
+        0.0,
+        1.0
+    ); 
+
+    if(constants.cam_mode <= 1){
+        gl_Position = ubo.camera_matrices[constants.cam_mode] * worldPos;
+    }else{
+        vec4 ortho_offset = 
+            ubo.camera_matrices[1] * vec4( mod_pos + vec2(0.5, 0.5), 0.0, 1.0);
+        gl_Position = (ubo.camera_matrices[0] * vec4(quadVertices[gl_VertexIndex], 0.0, 1.0)) + ortho_offset;
+    }
+
     // Pass through texture coordinates and color data
-    uint unicode = (unicode_atlas_and_colors >> 22) & 0x3FFu;
-    unicodeUV = encodingToUV(quadVertex, unicode);
-    atlas_index = (unicode_atlas_and_colors >> 16) & 0x3Fu;
-    
-    uint fg_index = (unicode_atlas_and_colors >> 8) & 0xFFu;
-    uint bg_index = unicode_atlas_and_colors & 0xFFu;
+    uint unicode = bitfieldExtract(unicode_atlas_and_colors, 22, 10);
+    unicodeUV = encodingToUV(quadVertices[gl_VertexIndex], unicode);
+    atlas_index = bitfieldExtract(unicode_atlas_and_colors, 16, 6);
+
+    // COLOURS
+    uint fg_index = bitfieldExtract(unicode_atlas_and_colors, 8, 8);
+    uint bg_index = bitfieldExtract(unicode_atlas_and_colors, 0, 8);
     fgUV = vec2(float(fg_index) / PALETTE_SIZE, 0.5);
     bgUV = vec2(float(bg_index) / PALETTE_SIZE, 0.5);
 }

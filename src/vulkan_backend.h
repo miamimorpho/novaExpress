@@ -30,6 +30,7 @@
 #define MAX_TILESETS 4
 
 #define MAX_LAYERS 6
+#define MAX_SPRITES 16
 
 #define DEBUG_BUFFER 0
 #define DEBUG_LAYERS 1
@@ -86,11 +87,11 @@ struct GpuContext {
   /* const */ VkSemaphore* render_finished;
   /* const */ VkFence* fence;
 
-  /* Pipeline */
+  /* Bios Pipeline */
   VkDescriptorSetLayout texture_descriptors_layout;
   VkDescriptorSet texture_descriptors;
-  VkDescriptorSetLayout transform_descriptors_layout;
-  VkDescriptorSet transform_descriptors;
+  VkDescriptorSetLayout frame_descriptors_layout;
+  VkDescriptorSet frame_descriptors;
   VkPipelineLayout pipeline_layout;
   VkPipeline pipeline;
 };
@@ -110,15 +111,6 @@ struct TermTileset {
   uint32_t glyph_w;
 };
 
-struct GpuPackedTile {
-  uint32_t pos;
-  uint32_t unicode_atlas_and_colors;
-};
-
-struct VramLayerTile{
-    uint32_t unicode_atlas_and_colors;
-};
-
 /* INIT */
 int gpuDevicesCreate(struct GpuContext*, GLFWwindow*);
 int gpuSwapchainCreate(struct GpuContext*, uint32_t, uint32_t);
@@ -129,25 +121,24 @@ int gpuPipelineCreate(struct GpuContext* gpu);
 int gpuSpvLoad(VkDevice l_dev, const char* filename, VkShaderModule* shader);
 
 /* Command Buffer Singleshots */
-VkCommandBuffer gpuCmdSingleBegin(struct GpuContext);
-int gpuCmdSingleEnd(struct GpuContext, VkCommandBuffer);
+VkCommandBuffer gpuCmdSingleBegin(struct GpuContext*);
+int gpuCmdSingleEnd(struct GpuContext*, VkCommandBuffer);
 
 /* Memory Buffers */
-int gpuBufferCreate(VmaAllocator, VkBufferUsageFlags, VkDeviceSize,
+int gpuBufferCreate(struct GpuContext*, VkBufferUsageFlags, VkDeviceSize,
                     struct GpuBuffer*);
 int gpuBufferDestroy(VmaAllocator, struct GpuBuffer*);
-int gpuVertBufferCreate(struct GpuContext*, size_t, struct GpuBuffer*);
-int gpuBufferPush(VmaAllocator, struct GpuBuffer*, const void*, VkDeviceSize);
+int gpuBufferPush(struct GpuContext*, struct GpuBuffer*, const void*, VkDeviceSize);
 int gpuBufferPop(struct GpuBuffer* dest, size_t nmemb, size_t stride);
-void* gpuBufferGetPtr(VmaAllocator allocator, struct GpuBuffer buf);
+void* gpuBufferGetPtr(struct GpuContext*, struct GpuBuffer buf);
 size_t gpuBufferCapacity(VmaAllocator, struct GpuBuffer);
 struct GpuBuffer* gpuBufferNext(VmaAllocator, struct GpuBuffer*);
 
 /* Textures */
 int transitionImageLayout(VkCommandBuffer, VkImage, VkImageLayout, VkImageLayout);
-int gpuImageToGpu(struct GpuContext, unsigned char*, int, int, int, struct GpuImage*);
-void gpuImageDestroy(VmaAllocator, struct GpuImage);
-int gfxTexturesDescriptorsUpdate(struct GpuContext, struct TermTileset*, uint32_t);
+int gpuImageToGpu(struct GpuContext*, unsigned char*, int, int, int, struct GpuImage*);
+void gpuImageDestroy(struct GpuContext*, struct GpuImage);
+int gpuTexturesDescriptorsUpdate(struct GpuContext*, struct TermTileset*, uint32_t);
 
 
 #endif  // VULKAN_META_H

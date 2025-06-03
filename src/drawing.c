@@ -37,80 +37,32 @@ uint32_t pack16into32(uint16_t a, uint16_t b) {
   return (uint32_t)a << 16 | (uint32_t)b;
 }
 
-void termMove(struct TermContext* gfx, int32_t x, int32_t y) {
+void tileMoveSafe(struct TermContext* gfx, int32_t x, int32_t y) {
   gfx->cursor[0] = iMin(x, TILE_BUFFER_WIDTH);
   gfx->cursor[1] = iMin(y, TILE_BUFFER_WIDTH);
 }
 
-void termAddCh(struct TermContext* term, uint32_t unicode) {
+void tileAdd(struct TermContext* term, uint32_t unicode) {
   if (term->cursor[0] > TILE_BUFFER_WIDTH) {
     term->cursor[1] += 1;
     term->cursor[0] -= TILE_BUFFER_WIDTH;
   }
 
-  struct GpuPackedTile dst = {
-      .pos = pack16into32(term->cursor[0], term->cursor[1]),
-      .unicode_atlas_and_colors =
-          glyphPackUnicode(term, unicode, term->atlas, term->fg, term->bg)};
-
   size_t layer_offset = TILE_BUFFER_SIZE * term->layer;
-  // TODO add layered rendering
   size_t i = ( term->cursor[1] * TILE_BUFFER_WIDTH ) + term->cursor[0];
 
-  struct GpuPackedTile* b = gpuBufferGetPtr(term->gpu.allocator, term->tile_indices);
-  b[layer_offset + i] = dst;
+  uint32_t* b = gpuBufferGetPtr(term->gpu, term->tile_indices);
+  b[layer_offset + i] = glyphPackUnicode(term, unicode, term->atlas, term->fg, term->bg);
   term->cursor[0]++;
 }
 
-void updateMvpUbo(struct TermContext* ctx){
-    struct GpuMvp mvp;
-    glm_mat4_identity(mvp.model);
-   
-    static int rot = -135;
-    
-    // Classic isometric: 30° elevation, 45° rotation
-    float dist = 70;
-    vec3 center = {
-	TILE_BUFFER_WIDTH / 2,
-	TILE_BUFFER_WIDTH / 2,
-	0
-    };
-    vec3 eye = {
-        center[0] + dist * cos(glm_rad(rot)) * cos(glm_rad(30)),
-        center[1] + dist * sin(glm_rad(rot)) * cos(glm_rad(30)), 
-        center[2] + dist * sin(glm_rad(30))
-    };
-    vec3 up = {0, 0, 1};
-    glm_lookat(eye, center, up, mvp.view);
-    int scr_width = TILE_BUFFER_WIDTH * 0.4;
-    int scr_height = TILE_BUFFER_WIDTH * 0.4;
-   
-    glm_ortho(-scr_width, scr_width, 
-              -scr_height, scr_height, 
-              0.01f, 100.0f, mvp.proj);
-    
-    memcpy(gpuBufferGetPtr(ctx->gpu.allocator, ctx->transform_ubo), &mvp, sizeof(struct GpuMvp));
-}
-
-void updateMvpUbo2d(struct TermContext* ctx){
-    struct GpuMvp mvp;
-    glm_mat4_identity(mvp.model);
-    glm_mat4_identity(mvp.view);
-    
-    glm_ortho(0, TILE_BUFFER_WIDTH,
-	      0, TILE_BUFFER_WIDTH,
-	      -1.0f, 1.0f, mvp.proj);
-    
-    memcpy(gpuBufferGetPtr(ctx->gpu.allocator, ctx->transform_ubo), &mvp, sizeof(struct GpuMvp));
-}
-
-void termMvAddCh(struct TermContext* gfx, int32_t x, int32_t y,
+void tileMvAdd(struct TermContext* gfx, int32_t x, int32_t y,
                  uint32_t unicode) {
-  termMove(gfx, x, y);
-  termAddCh(gfx, unicode);
+  tileMoveSafe(gfx, x, y);
+  tileAdd(gfx, unicode);
 }
 
-void termPrint(struct TermContext* term, const char* str) {
+void tilePrint(struct TermContext* term, const char* str) {
   term->atlas = ASCII_TEXTURE_INDEX;
 
   int i = 0;
@@ -120,15 +72,37 @@ void termPrint(struct TermContext* term, const char* str) {
       term->cursor[1] += 1;
       term->cursor[0] = 0;
     } else {
-      termAddCh(term, str[i]);
+      tileAdd(term, str[i]);
     }
     i++;
   }
   // end
 }
 
+int spriteAdd(struct TermContext* term, const vec2* pos_arr, const uint32_t* tiles, size_t count) {
+
+  if(term->sprite_count + count > MAX_SPRITES) abort();
+
+  gpuBufferPush(term->gpu, &term->sprite_pos_arr, pos_arr, count * sizeof(vec2));
+  gpuBufferPush(term->gpu, &term->sprite_indices, tiles, count * sizeof(uint32_t));
+  term->sprite_count += count;
+
+  return 0;
+}
+
+int spriteMove(struct TermContext* term, vec2 delta, size_t start, size_t count){
+
+  if(start + count > MAX_SPRITES) abort();
+  
+  vec2* pos_arr_ptr = gpuBufferGetPtr(term->gpu, term->sprite_pos_arr);
+  for(size_t i = start; i < start + count; i++){
+   glm_vec2_add(delta, pos_arr_ptr[i], pos_arr_ptr[i]); 
+  }
+  return 0;
+}
+
 int gfxBakeCommandBuffer(struct TermContext* term) {
-  struct GpuContext* gpu = &term->gpu;
+  struct GpuContext* gpu = term->gpu;
   VkCommandBuffer cmd_b = gpu->cmd_buffer[gpu->swapchain_x];
   vkResetCommandBuffer(cmd_b, 0);
 
@@ -172,14 +146,8 @@ int gfxBakeCommandBuffer(struct TermContext* term) {
   };
   pfn_vkCmdBeginRenderingKHR(cmd_b, &render_info);
 
-  GfxPushConstant constants = {
-      .screen_size_px = {gpu->extent.width, gpu->extent.height}
-  };
-  vkCmdPushConstants(cmd_b, gpu->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0,
-                     sizeof(GfxPushConstant), &constants);
-
   vkCmdBindDescriptorSets(cmd_b, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            gpu->pipeline_layout, 0, 1, &gpu->transform_descriptors, 0, NULL);
+                            gpu->pipeline_layout, 0, 1, &gpu->frame_descriptors, 0, NULL);
 
   vkCmdBindDescriptorSets(cmd_b, VK_PIPELINE_BIND_POINT_GRAPHICS,
                           gpu->pipeline_layout, 1, 1, &gpu->texture_descriptors,
@@ -204,11 +172,38 @@ int gfxBakeCommandBuffer(struct TermContext* term) {
   vkCmdBindPipeline(cmd_b, VK_PIPELINE_BIND_POINT_GRAPHICS, gpu->pipeline);
 
   VkDeviceSize offsets[] = {0};
-  vkCmdBindVertexBuffers(cmd_b, 0, 1, &term->tile_indices.handle, offsets);
 
-  vkCmdDrawIndirect(cmd_b, term->indirect.handle, 0,
-                    MAX_LAYERS,
-                    sizeof(VkDrawIndirectCommand));
+  // Placeholder sprite vertex buffer for now
+  vkCmdBindVertexBuffers(cmd_b, 0, 1, &term->sprite_pos_arr.handle, offsets);
+
+  // Tile map rendering
+  vkCmdBindVertexBuffers(cmd_b, 1, 1, &term->tile_indices.handle, offsets);
+  for(int i = 0; i < MAX_LAYERS; i++){
+    vkCmdPushConstants(cmd_b,
+            gpu->pipeline_layout,
+            VK_SHADER_STAGE_VERTEX_BIT,
+            0,
+            sizeof(struct GpuPushConstant),
+            &term->draw_push_const[i]);
+
+      vkCmdDraw(cmd_b,
+              6,
+              TILE_BUFFER_SIZE,
+              0,
+              i * TILE_BUFFER_SIZE);
+  }
+
+  // Sprite rendering
+  vkCmdBindVertexBuffers(cmd_b, 1, 1, &term->sprite_indices.handle, offsets);
+  
+  struct GpuPushConstant sprite_push = (struct GpuPushConstant){3, 1};
+  vkCmdPushConstants(cmd_b,
+          gpu->pipeline_layout,
+          VK_SHADER_STAGE_VERTEX_BIT,
+          0,
+          sizeof(struct GpuPushConstant),
+          &sprite_push);
+  vkCmdDraw(cmd_b, 6, term->sprite_count, 0, 0);
 
   pfn_vkCmdEndRenderingKHR(cmd_b);
 
@@ -220,9 +215,9 @@ int gfxBakeCommandBuffer(struct TermContext* term) {
 }
 
 void termDrawRefresh(struct TermContext* term) {
-  struct GpuContext* gpu = &term->gpu;
+  struct GpuContext* gpu = term->gpu;
  
-  updateMvpUbo(term);
+  //updateMvpUbo(term);
   gpu->frame_x = (gpu->frame_x + 1) % gpu->frame_c;
  
   // waits for gpu to finish rendering
@@ -245,7 +240,7 @@ void termDrawRefresh(struct TermContext* term) {
     int width_px, height_px;
     glfwGetWindowSize(term->window, &width_px, &height_px);
 
-    gpuSwapchainRecreate(&term->gpu, width_px, height_px);
+    gpuSwapchainRecreate(term->gpu, width_px, height_px);
     vkDestroySemaphore(gpu->ldev, *image_available, NULL);
     VkSemaphoreCreateInfo semaphore_info = {
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,

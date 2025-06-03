@@ -59,16 +59,16 @@ int gpuSpvLoad(VkDevice l_dev, const char* filename, VkShaderModule* shader) {
   return 0;
 }
 
-VkCommandBuffer gpuCmdSingleBegin(struct GpuContext gpu) {
+VkCommandBuffer gpuCmdSingleBegin(struct GpuContext* gpu) {
   VkCommandBufferAllocateInfo alloc_info = {
       .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
       .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-      .commandPool = gpu.cmd_pool,
+      .commandPool = gpu->cmd_pool,
       .commandBufferCount = 1,
   };
 
   VkCommandBuffer command_buffer;
-  vkAllocateCommandBuffers(gpu.ldev, &alloc_info, &command_buffer);
+  vkAllocateCommandBuffers(gpu->ldev, &alloc_info, &command_buffer);
 
   VkCommandBufferBeginInfo begin_info = {
       .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -80,7 +80,7 @@ VkCommandBuffer gpuCmdSingleBegin(struct GpuContext gpu) {
   return command_buffer;
 }
 
-int gpuCmdSingleEnd(struct GpuContext gpu, VkCommandBuffer cmd_buffer) {
+int gpuCmdSingleEnd(struct GpuContext* gpu, VkCommandBuffer cmd_buffer) {
   vkEndCommandBuffer(cmd_buffer);
 
   VkSubmitInfo submit_info = {
@@ -89,18 +89,18 @@ int gpuCmdSingleEnd(struct GpuContext gpu, VkCommandBuffer cmd_buffer) {
       .pCommandBuffers = &cmd_buffer,
   };
 
-  if (vkQueueSubmit(gpu.queue, 1, &submit_info, VK_NULL_HANDLE) != VK_SUCCESS)
+  if (vkQueueSubmit(gpu->queue, 1, &submit_info, VK_NULL_HANDLE) != VK_SUCCESS)
     return 1;
 
-  vkQueueWaitIdle(gpu.queue);
-  vkFreeCommandBuffers(gpu.ldev, gpu.cmd_pool, 1, &cmd_buffer);
+  vkQueueWaitIdle(gpu->queue);
+  vkFreeCommandBuffers(gpu->ldev, gpu->cmd_pool, 1, &cmd_buffer);
   return 0;
 }
 
-int gpuBufferPush(VmaAllocator allocator, struct GpuBuffer* dest,
+int gpuBufferPush(struct GpuContext* gpu, struct GpuBuffer* dest,
                   const void* src, VkDeviceSize src_size) {
   VmaAllocationInfo dest_info;
-  vmaGetAllocationInfo(allocator, dest->allocation, &dest_info);
+  vmaGetAllocationInfo(gpu->allocator, dest->allocation, &dest_info);
 
   // printf("buffer append size %llu\n", src_size);
 
@@ -109,7 +109,7 @@ int gpuBufferPush(VmaAllocator allocator, struct GpuBuffer* dest,
     abort();
   }
 
-  vmaCopyMemoryToAllocation(allocator, src, dest->allocation, dest->top,
+  vmaCopyMemoryToAllocation(gpu->allocator, src, dest->allocation, dest->top,
                             src_size);
   dest->top += src_size;
   return 0;
@@ -125,10 +125,10 @@ int gpuBufferPop(struct GpuBuffer* dest, size_t nmemb, size_t stride) {
   return 0;
 }
 
-void* gpuBufferGetPtr(VmaAllocator allocator, struct GpuBuffer buf){
+void* gpuBufferGetPtr(struct GpuContext* gpu, struct GpuBuffer buf){
  
   VmaAllocationInfo allocInfo;
-  vmaGetAllocationInfo(allocator, buf.allocation, &allocInfo);
+  vmaGetAllocationInfo(gpu->allocator, buf.allocation, &allocInfo);
   return allocInfo.pMappedData;
 }
 
@@ -138,7 +138,7 @@ size_t gpuBufferCapacity(VmaAllocator allocator, struct GpuBuffer buffer) {
   return info.size;
 }
 
-int gpuBufferCreate(VmaAllocator allocator, VkBufferUsageFlags usage,
+int gpuBufferCreate(struct GpuContext* gpu, VkBufferUsageFlags usage,
                     VkDeviceSize size, struct GpuBuffer* dest) {
   if (DEBUG_BUFFER) {
     printf("+creating buffer %p\n", (void*)dest);
@@ -154,7 +154,7 @@ int gpuBufferCreate(VmaAllocator allocator, VkBufferUsageFlags usage,
       .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
   };
 
-  VK_CHECK(vmaCreateBuffer(allocator, &buffer_info, &vma_alloc_info,
+  VK_CHECK(vmaCreateBuffer(gpu->allocator, &buffer_info, &vma_alloc_info,
                            &dest->handle, &dest->allocation, NULL));
   dest->top = 0;
 
@@ -224,7 +224,7 @@ int gpuImageViewCreate(VkDevice l_dev, VkImage image, VkImageView* view,
   return 0;
 }
 
-int gpuCopyBufferToImage(struct GpuContext gpu, VkBuffer buffer,
+int gpuCopyBufferToImage(struct GpuContext* gpu, VkBuffer buffer,
         VkImage image, uint32_t width, uint32_t height) {
   VkCommandBuffer command = gpuCmdSingleBegin(gpu);
 
@@ -310,13 +310,13 @@ int transitionImageLayout(VkCommandBuffer commands, VkImage image,
   return 0;
 }
 
-void gpuImageDestroy(VmaAllocator allocator, struct GpuImage image) {
+void gpuImageDestroy(struct GpuContext* gpu, struct GpuImage image) {
   VmaAllocatorInfo alloc_info;
-  vmaGetAllocatorInfo(allocator, &alloc_info);
+  vmaGetAllocatorInfo(gpu->allocator, &alloc_info);
 
   vkDestroySampler(alloc_info.device, image.sampler, NULL);
   vkDestroyImageView(alloc_info.device, image.view, NULL);
-  vmaDestroyImage(allocator, image.handle, image.allocation);
+  vmaDestroyImage(gpu->allocator, image.handle, image.allocation);
 }
 
 int gpuQueueIndex(struct GpuContext* gpu) {
@@ -340,6 +340,7 @@ int gpuQueueIndex(struct GpuContext* gpu) {
 }
 
 int gpuDevicesCreate(struct GpuContext* gpu, GLFWwindow* glfw_window) {
+  
   uint32_t vk_version;
   vkEnumerateInstanceVersion(&vk_version);
 
@@ -477,11 +478,17 @@ int gpuDevicesCreate(struct GpuContext* gpu, GLFWwindow* glfw_window) {
       .sType =
           VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT,
   };
+ 
+  VkPhysicalDeviceShaderDrawParametersFeatures draw_params_features = {
+    .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES,
+    .shaderDrawParameters = VK_TRUE,  // Enable shader draw parameters
+    .pNext = &descriptor_indexing_features,
+  };
 
   VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamic_rendering_feature = {
       .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
       .dynamicRendering = VK_TRUE,
-      .pNext = &descriptor_indexing_features};
+      .pNext = &draw_params_features};
 
   VkPhysicalDeviceFeatures2 dev_features2 = {
       .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
@@ -652,11 +659,11 @@ int gpuSwapchainCreate(struct GpuContext* gpu, uint32_t width,
   return 0;
 }
 
-int gpuSwapchainDestroy(struct GpuContext gpu) {
-  for (uint32_t i = 0; i < gpu.swapchain_c; i++) {
-    vkDestroyImageView(gpu.ldev, gpu.swapchain_views[i], NULL);
+int gpuSwapchainDestroy(struct GpuContext* gpu) {
+  for (uint32_t i = 0; i < gpu->swapchain_c; i++) {
+    vkDestroyImageView(gpu->ldev, gpu->swapchain_views[i], NULL);
   }
-  vkDestroySwapchainKHR(gpu.ldev, gpu.swapchain, NULL);
+  vkDestroySwapchainKHR(gpu->ldev, gpu->swapchain, NULL);
 
   return 0;
 }
@@ -665,7 +672,7 @@ int gpuSwapchainRecreate(struct GpuContext* gpu, uint32_t width,
                          uint32_t height) {
   vkDeviceWaitIdle(gpu->ldev);
 
-  gpuSwapchainDestroy(*gpu);
+  gpuSwapchainDestroy(gpu);
 
   gpuSwapchainCreate(gpu, width, height);
 
@@ -818,7 +825,7 @@ int gpuTextureDescriptorsCreate(struct GpuContext* gpu){
   return 0;
 }
 
-int gfxTexturesDescriptorsUpdate(struct GpuContext gpu,
+int gpuTexturesDescriptorsUpdate(struct GpuContext* gpu,
                                  struct TermTileset* tilesets, uint32_t count) {
   VkDescriptorImageInfo infos[count];
   VkWriteDescriptorSet writes[count];
@@ -835,7 +842,7 @@ int gfxTexturesDescriptorsUpdate(struct GpuContext gpu,
 
     writes[i] = (VkWriteDescriptorSet){
         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-        .dstSet = gpu.texture_descriptors,
+        .dstSet = gpu->texture_descriptors,
         .dstBinding = 0,
         .dstArrayElement = i,
         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -844,7 +851,7 @@ int gfxTexturesDescriptorsUpdate(struct GpuContext gpu,
     };
   }
 
-  vkUpdateDescriptorSets(gpu.ldev, count, writes, 0, NULL);
+  vkUpdateDescriptorSets(gpu->ldev, count, writes, 0, NULL);
 
   return 0;
 }
@@ -864,7 +871,7 @@ int gpuContextDestroy(struct GpuContext gpu) {
   vkDestroyDescriptorSetLayout(gpu.ldev, gpu.texture_descriptors_layout, NULL);
   vkDestroyDescriptorPool(gpu.ldev, gpu.descriptor_pool, NULL);
 
-  gpuSwapchainDestroy(gpu);
+  gpuSwapchainDestroy(&gpu);
 
   vmaDestroyAllocator(gpu.allocator);
 
@@ -909,10 +916,10 @@ static int gpuSamplerCreate(VkDevice ldev, VkPhysicalDevice pdev,
   return 0;
 }
 
-int gpuImageToGpu(struct GpuContext gpu, unsigned char* pixels, int width,
+int gpuImageToGpu(struct GpuContext* gpu, unsigned char* pixels, int width,
                   int height, int channels, struct GpuImage* texture) {
   VmaAllocatorInfo allocator_info;
-  vmaGetAllocatorInfo(gpu.allocator, &allocator_info);
+  vmaGetAllocatorInfo(gpu->allocator, &allocator_info);
 
   VkFormat format;
   switch (channels) {
@@ -931,16 +938,15 @@ int gpuImageToGpu(struct GpuContext gpu, unsigned char* pixels, int width,
 
   VkDeviceSize image_size = width * height * channels;
   struct GpuBuffer image_b;
-  gpuBufferCreate(gpu.allocator, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, image_size,
+  gpuBufferCreate(gpu, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, image_size,
                   &image_b);
 
   /* copy pixel data to buffer */
-  vmaCopyMemoryToAllocation(gpu.allocator, pixels, image_b.allocation, 0,
+  vmaCopyMemoryToAllocation(gpu->allocator, pixels, image_b.allocation, 0,
                             image_size);
-  // memcpy(image_b.first_ptr, pixels, image_size);
 
   gpuImageAlloc(
-      gpu.allocator, texture,
+      gpu->allocator, texture,
       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, format,
       width, height);
 
@@ -954,7 +960,7 @@ int gpuImageToGpu(struct GpuContext gpu, unsigned char* pixels, int width,
   gpuCopyBufferToImage(gpu, image_b.handle, texture->handle,
                                      (uint32_t)width, (uint32_t)height);
 
-  gpuBufferDestroy(gpu.allocator, &image_b);
+  gpuBufferDestroy(gpu->allocator, &image_b);
 
   cmd = gpuCmdSingleBegin(gpu);
   transitionImageLayout(
