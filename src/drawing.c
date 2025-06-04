@@ -18,7 +18,7 @@
 #define MASK(bits) ((1u << (bits)) - 1)
 
 // TODO: standardise bit packing through code
-static inline uint32_t glyphPackUnicode(struct TermContext* term,
+uint32_t gpuPackUnicode(struct TermContext* term,
                                         uint32_t unicode, uint32_t atlas,
                                         uint32_t fg, uint32_t bg) {
   if (atlas > MAX_TILESETS) return 1;
@@ -52,7 +52,7 @@ void tileAdd(struct TermContext* term, uint32_t unicode) {
   size_t i = ( term->cursor[1] * TILE_BUFFER_WIDTH ) + term->cursor[0];
 
   uint32_t* b = gpuBufferGetPtr(term->gpu, term->tile_indices);
-  b[layer_offset + i] = glyphPackUnicode(term, unicode, term->atlas, term->fg, term->bg);
+  b[layer_offset + i] = gpuPackUnicode(term, unicode, term->atlas, term->fg, term->bg);
   term->cursor[0]++;
 }
 

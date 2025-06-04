@@ -48,6 +48,7 @@ struct UnicodeTile {
   uint8_t fg;
   uint8_t bg;
 };
+#define UNPACK_UNICODE(u_) (u_)->unicode, (u_)->atlas, (u_)->fg, (u_)->bg
 
 struct Terra {
   struct UnicodeTile tile;

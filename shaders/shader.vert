@@ -66,20 +66,23 @@ void main() {
         vec4 worldPos = vec4(mod_pos + quadVertices[gl_VertexIndex], 0.0, 1.0 ); 
         gl_Position = ubo.cam_seven_proj * ubo.cam_seven_view * worldPos;
     }else if(constants.cam_mode == 3){
-        // Billboard mode
-        mat3 viewMatrix3x3 = mat3(ubo.cam_seven_view);
-        vec3 cameraRight = normalize(viewMatrix3x3[0]);
-        vec3 cameraUp = normalize(viewMatrix3x3[1]);
+        // Billboard mode - debug the view matrix approach
+        mat4 viewMatrix = ubo.cam_seven_view;
+        
+        // Extract camera vectors - these are the camera's local axes in world space
+        // For a standard view matrix, we need the inverse transform
+        vec3 cameraRight = normalize(vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]));
+        vec3 cameraUp = normalize(vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]));
         
         // Center the quad around mod_pos (sprite center)
         vec2 quadOffset = quadVertices[gl_VertexIndex] - vec2(0.5, 0.5);
         
-        // Create billboard position
-        vec3 spriteCenter = vec3(mod_pos.x, mod_pos.y, 1.0);
+        // Create billboard position in Z-up world space
+        vec3 spriteCenter = vec3(mod_pos.x + 0.5, mod_pos.y +0.5, 0.5);
         vec3 billboardPos = spriteCenter + (cameraRight * quadOffset.x + cameraUp * quadOffset.y);
         
         gl_Position = ubo.cam_seven_proj * ubo.cam_seven_view * vec4(billboardPos, 1.0);
-    } else {
+   } else {
         // Fallback
         vec4 worldPos = vec4(mod_pos + quadVertices[gl_VertexIndex], 0.0, 1.0);
         gl_Position = ubo.cam_seven_proj * ubo.cam_seven_view * worldPos;

@@ -65,7 +65,7 @@ int gpuTilesetLoad(struct TermContext*, const char*);
 
 /* drawing.c */
 void termDrawBegin(struct TermContext*);
-
+uint32_t gpuPackUnicode(struct TermContext* term, uint32_t, uint32_t, uint32_t, uint32_t);
 void tileMoveSafe(struct TermContext*, int32_t x, int32_t y);
 void termAtlas(struct TermContext*, int32_t);
 void termFg(struct TermContext*, int32_t);

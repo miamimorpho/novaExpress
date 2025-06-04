@@ -208,6 +208,8 @@ int fovDrawWorld(TermCtx term, struct Map* m, uint32_t x_in, uint32_t y_in,
   for(int y = 0; y < TILE_BUFFER_WIDTH; y++){
     for(int x = 0; x < TILE_BUFFER_WIDTH; x++){
       struct Terra t = terraGet(m, dx + x, dy +y);
+      term->fg = 0;
+      term->bg= 0;
       tileMvAdd(term, x, y, t.tile.unicode); 
     }
   }
@@ -224,10 +226,13 @@ int fovDrawWorld(TermCtx term, struct Map* m, uint32_t x_in, uint32_t y_in,
    * bmp, this can be used to occlude sparse object data
    * on following passes.
    */
-  Bitmap* mask = bitmapCreate(scr_width, scr_height, allocator);
+  Bitmap* mask = bitmapCreate(scr_width, scr_height, allocator); 
   fovShadowcast(m, x_in, y_in, mask, effects);
   //termDrawPushZ(term);
 
+ 
+ 
+  /*
   struct Mobile* mob;
   struct HashPosSearch* iter = spatialHashSearch(m->mobs.hash, x_in, y_in, 1,
                                                  &searchAll, NULL, allocator);
@@ -235,7 +240,9 @@ int fovDrawWorld(TermCtx term, struct Map* m, uint32_t x_in, uint32_t y_in,
     effects->renderTile(effects, mob->hash_pos_entry.x, mob->hash_pos_entry.y,
                         mob->tile);
   }
+  
   spatialHashSearchEnd(iter, allocator);
+  */
   //termDrawPushZ(term);
 
  
