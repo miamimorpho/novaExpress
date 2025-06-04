@@ -12,7 +12,10 @@ layout(push_constant) uniform PushConstants {
 } constants;
 
 layout(set = 0, binding = 0) uniform UniformBufferObject {
-    mat4 camera_matrices[2];
+  mat4 cam_flat_view;
+  mat4 cam_flat_proj;
+  mat4 cam_seven_view;
+  mat4 cam_seven_proj;
 } ubo;
 
 layout(location = 0) out vec2 unicodeUV;
@@ -55,18 +58,31 @@ void main() {
         mod_pos = in_position;
     }
 
-    vec4 worldPos = vec4(
-        mod_pos + quadVertices[gl_VertexIndex],
-        0.0,
-        1.0
-    ); 
 
-    if(constants.cam_mode <= 1){
-        gl_Position = ubo.camera_matrices[constants.cam_mode] * worldPos;
-    }else{
-        vec4 ortho_offset = 
-            ubo.camera_matrices[1] * vec4( mod_pos + vec2(0.5, 0.5), 0.0, 1.0);
-        gl_Position = (ubo.camera_matrices[0] * vec4(quadVertices[gl_VertexIndex], 0.0, 1.0)) + ortho_offset;
+    if(constants.cam_mode == 1){
+        vec4 worldPos = vec4(mod_pos + quadVertices[gl_VertexIndex], 0.0, 1.0 ); 
+        gl_Position = ubo.cam_flat_proj * ubo.cam_flat_view * worldPos;
+    }else if(constants.cam_mode == 2){
+        vec4 worldPos = vec4(mod_pos + quadVertices[gl_VertexIndex], 0.0, 1.0 ); 
+        gl_Position = ubo.cam_seven_proj * ubo.cam_seven_view * worldPos;
+    }else if(constants.cam_mode == 3){
+        // Billboard mode
+        mat3 viewMatrix3x3 = mat3(ubo.cam_seven_view);
+        vec3 cameraRight = normalize(viewMatrix3x3[0]);
+        vec3 cameraUp = normalize(viewMatrix3x3[1]);
+        
+        // Center the quad around mod_pos (sprite center)
+        vec2 quadOffset = quadVertices[gl_VertexIndex] - vec2(0.5, 0.5);
+        
+        // Create billboard position
+        vec3 spriteCenter = vec3(mod_pos.x, mod_pos.y, 1.0);
+        vec3 billboardPos = spriteCenter + (cameraRight * quadOffset.x + cameraUp * quadOffset.y);
+        
+        gl_Position = ubo.cam_seven_proj * ubo.cam_seven_view * vec4(billboardPos, 1.0);
+    } else {
+        // Fallback
+        vec4 worldPos = vec4(mod_pos + quadVertices[gl_VertexIndex], 0.0, 1.0);
+        gl_Position = ubo.cam_seven_proj * ubo.cam_seven_view * worldPos;
     }
 
     // Pass through texture coordinates and color data

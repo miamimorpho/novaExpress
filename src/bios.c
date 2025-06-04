@@ -265,17 +265,7 @@ int gpuTilesetsFree(struct TermContext* term) {
   return 0;
 }
 
-/* Isometric, Rot -135, Elev 30
- * Top Dow, Rot -90, Elev 90
- *
- *
- */
-void cameraMatrix(mat4 dest, int rot, int elev){
-    //struct GpuMvp mvp;
-    mat4 model;
-    glm_mat4_identity(model);
-   
-    // Classic isometric: 30° elevation, 45° rotation
+void cameraView(int rot, int elev, mat4 dest){
     float dist = 70;
     vec3 center = {
 	TILE_BUFFER_WIDTH / 2,
@@ -293,20 +283,28 @@ void cameraMatrix(mat4 dest, int rot, int elev){
         up[2] = 0;
     }else{
         up[1] = 0;
-        up[2] = 1;
+        up[2] = -1;
     }
 
-    mat4 view;
-    glm_lookat(eye, center, up, view);
-    int scr_width = TILE_BUFFER_WIDTH * 0.4;
-    int scr_height = TILE_BUFFER_WIDTH * 0.4;
-   
-    mat4 proj;
+    glm_lookat(eye, center, up, dest);
+}
+
+/* Isometric, Rot -135, Elev 30
+ * Top Dow, Rot -90, Elev 90
+ *
+ *
+ */
+void cameraOrtho(mat4 out){
+    int scr_width = TILE_BUFFER_WIDTH * 0.5; 
+    int scr_height = TILE_BUFFER_WIDTH * 0.5;
+
     glm_ortho(-scr_width, scr_width, 
               -scr_height, scr_height, 
-              0.01f, 100.0f, proj);
+              0.01f, 100.0f, out);
+}
 
-    glm_mat4_mulN((mat4 *[]){&proj, &view, &model}, 3, dest);
+void cameraPersp(mat4 out){
+    glm_perspective(glm_rad(30), 1.0f, 0.0f, 100.0f, out);
 }
 
 // used for debugging only
@@ -691,12 +689,16 @@ struct TermContext* termCtxCreate(int width_in_tiles, int height_in_tiles) {
   term->draw_push_const = 
       fatPtrCreate(MAX_LAYERS, sizeof(struct GpuPushConstant), term->allocator);
 
-  term->draw_push_const[0].cam_mode = 1;
-  term->draw_push_const[1].cam_mode = 0;
+  term->draw_push_const[0].cam_mode = 2;
+  term->draw_push_const[1].cam_mode = 1;
 
   struct GpuFrameUniform frame_ubo;
-  camera2D(frame_ubo.cam_flat); //-90, 90);
-  cameraMatrix(frame_ubo.cam_ortho, -90, 90);
+  cameraView(-90, 90, frame_ubo.cam_flat_view);
+  cameraOrtho(frame_ubo.cam_flat_proj);
+  
+  cameraView(45, 45, frame_ubo.cam_seven_view);
+  cameraPersp(frame_ubo.cam_seven_proj);
+
   gpuBufferPush(term->gpu, &term->frame_ubo[0], &frame_ubo, sizeof(frame_ubo));
 
   gpuBufferCreate(term->gpu,

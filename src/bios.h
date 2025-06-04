@@ -30,8 +30,10 @@ struct GpuPushConstant{
 };
 
 struct GpuFrameUniform {
-   mat4 cam_flat;
-   mat4 cam_ortho;
+   mat4 cam_flat_view;
+   mat4 cam_flat_proj;
+   mat4 cam_seven_view;
+   mat4 cam_seven_proj;
 };
 
 struct TermContext {
